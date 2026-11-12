@@ -301,6 +301,16 @@
       $('pst').classList.add('on');
     }
     const pstClose = () => $('pst').classList.remove('on');
+    // รูปจากมือถือมักใหญ่ (หลาย MB) → ย่อเหลือด้านยาวไม่เกิน 3508 px (A4 ที่ 300 dpi) และแปลงเป็น JPG ก่อนส่ง
+    async function shrink(dataUrl) {
+      const im = await new Promise((ok, bad) => { const i = new Image(); i.onload = () => ok(i); i.onerror = bad; i.src = dataUrl; });
+      const sc = Math.min(1, 3508 / Math.max(im.width, im.height));
+      const c = document.createElement('canvas');
+      c.width = Math.round(im.width * sc); c.height = Math.round(im.height * sc);
+      const ctx = c.getContext('2d'); ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, c.width, c.height);
+      ctx.drawImage(im, 0, 0, c.width, c.height);
+      return { data: c.toDataURL('image/jpeg', .9).split(',')[1] };
+    }
     const toB64 = (file) => new Promise((ok, bad) => {
       const r = new FileReader(); r.onload = () => ok(String(r.result).split(',')[1]); r.onerror = bad; r.readAsDataURL(file);
     });
@@ -314,11 +324,19 @@
       let r;
       try {
         const list = [];
-        for (const f of files) list.push({ name: f.name, mime: f.mime, copies: f.copies, data: await toB64(f.file) });
-        const txt = await (await fetch(API_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-          body: JSON.stringify({ action: 'promo', dest: DEST, paper, fit, files: list, by: me, uid, lineName: me }) })).text();
+        for (const f of files) {
+          if (f.isPdf) list.push({ name: f.name, mime: 'application/pdf', copies: f.copies, data: await toB64(f.file) });
+          else list.push(Object.assign({ name: f.name.replace(/\.\w+$/, '') + '.jpg', mime: 'image/jpeg', copies: f.copies }, await shrink(f.pages[0])));
+        }
+        const body = JSON.stringify({ action: 'promo', dest: DEST, paper, fit, files: list, by: me, uid, lineName: me });
+        $('pD').textContent = `${files.length} ไฟล์ · ${kb(body.length * .75)} · ${sheets} → ${DEST}`;
+        const ctl = new AbortController(), timer = setTimeout(() => ctl.abort(), 120000);
+        let txt;
+        try {
+          txt = await (await fetch(API_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body, signal: ctl.signal })).text();
+        } finally { clearTimeout(timer); }
         try { r = JSON.parse(txt); } catch (e) { r = { error: 'Google ตอบกลับไม่ถูกต้อง — โค้ดบอทอาจยังไม่ได้ Deploy เวอร์ชันใหม่' }; }
-      } catch (e) { r = { error: 'ส่งงานไม่สำเร็จ (' + (e.message || e) + ')' }; }
+      } catch (e) { r = { error: e.name === 'AbortError' ? 'ส่งไฟล์นานเกิน 2 นาที — เน็ตช้าหรือไฟล์ใหญ่ ลองใหม่ หรือส่งทีละน้อยไฟล์' : 'ส่งงานไม่สำเร็จ (' + (e.message || e) + ')' }; }
       if (r.error === 'no_permission') { pst('🔒', 'ยังไม่มีสิทธิ์ปริ้น', 'แจ้ง admin ให้เปิดสิทธิ์ก่อนนะครับ', [['ปิด', pstClose]]); return; }
       if (r.error) { pst('⚠️', 'ส่งงานไม่สำเร็จ', r.error, [['ลองอีกครั้ง', sendPrint], ['ปิด', pstClose, true]]); return; }
 
