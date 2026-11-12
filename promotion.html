@@ -99,7 +99,7 @@
     <section class="card">
       <h2>2. ขนาดกระดาษ</h2>
       <div class="seg" id="paper">
-        <button data-v="A5">A5<small>ครึ่ง A4</small></button>
+        <button data-v="A5">A5<small>2 ป้ายต่อ A4</small></button>
         <button data-v="A4" class="on">A4<small>มาตรฐาน</small></button>
         <button data-v="A3">A3<small>ใหญ่</small></button>
       </div>
@@ -131,7 +131,7 @@
     // ===== ตั้งค่า =====
     const DEST = 'ALC';      // เครื่องที่ปริ้น: 'GR' / 'ALC' / 'RC'
     const LIFF_ID = '';      // LIFF ID ของหน้านี้ (ว่าง = เปิดในเบราว์เซอร์ธรรมดา ไม่รู้ชื่อคนปริ้น)
-    const API_URL = 'https://script.google.com/macros/s/AKfycbzHBiLgazk0LXHYRqTwkwNVYyrnrVt_J-FpdtvA3zho1kqpZgGYOsK07Lc-G3tYL_5Ugw/exec';
+    const API_URL = 'ใส่ URL Web app ของ Apps Script ตรงนี้ (ลงท้ายด้วย /exec)';
     const MAX_MB = 30;       // ขนาดไฟล์รวมต่อครั้ง
     // ===================
 
@@ -143,6 +143,11 @@
 
     if (window.pdfjsLib) pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 
+    // ไม่มีกระดาษ A5/A6 ใส่เครื่อง → ปริ้นรวมบน A4 (A5 = 2 ป้าย บน/ล่าง · A6 = 4 ป้าย) แล้วตัดแบ่ง
+    const NUP = { A5: 2, A6: 4 };
+    const sheetText = (signs) => NUP[paper]
+      ? `${signs} ป้าย · A4 ${Math.ceil(signs / NUP[paper])} แผ่น`
+      : `${signs} แผ่น`;
     const say = (t) => { $('msg').textContent = t || ''; };
     const kb = (n) => n > 1048576 ? (n / 1048576).toFixed(1) + ' MB' : Math.round(n / 1024) + ' KB';
 
@@ -200,8 +205,8 @@
           <img src="${src}" alt=""><span class="tag">${paper} ${land ? 'แนวนอน' : 'แนวตั้ง'} × ${f.copies}</span></div>`;
       }));
       $('pv').innerHTML = html || '<div class="empty">ยังไม่มีไฟล์ — แนบรูปป้ายด้านบนก่อน</div>';
-      $('pvCount').textContent = files.length ? `(${sheets} แผ่น)` : '';
-      $('sum').textContent = sheets + ' แผ่น';
+      $('pvCount').textContent = files.length ? `(${sheetText(sheets)})` : '';
+      $('sum').textContent = sheetText(sheets);
       $('sum2').textContent = paper + ' · ' + (fit === 'fit' ? 'พอดีแผ่น' : 'เต็มแผ่น') + ' · เครื่อง ' + DEST;
       $('print').disabled = !files.length;
     }
@@ -241,8 +246,8 @@
       if (!files.length) return;
       const total = files.reduce((n, f) => n + f.size, 0);
       if (total > MAX_MB * 1048576) { pst('📦', 'ไฟล์รวมใหญ่เกินไป', `รวม ${kb(total)} (ไม่เกิน ${MAX_MB} MB ต่อครั้ง) — แบ่งส่งทีละน้อย`, [['ตกลง', pstClose]]); return; }
-      const sheets = files.reduce((n, f) => n + f.pages.length * f.copies, 0);
-      pst('⏳', 'กำลังส่งไฟล์…', `${files.length} ไฟล์ · ${sheets} แผ่น → ${DEST}`, [], true);
+      const sheets = sheetText(files.reduce((n, f) => n + f.pages.length * f.copies, 0));
+      pst('⏳', 'กำลังส่งไฟล์…', `${files.length} ไฟล์ · ${sheets} → ${DEST}`, [], true);
       let r;
       try {
         const list = [];
@@ -254,7 +259,7 @@
       if (r.error === 'no_permission') { pst('🔒', 'ยังไม่มีสิทธิ์ปริ้น', 'แจ้ง admin ให้เปิดสิทธิ์ก่อนนะครับ', [['ปิด', pstClose]]); return; }
       if (r.error) { pst('⚠️', 'ส่งงานไม่สำเร็จ', r.error, [['ลองอีกครั้ง', sendPrint], ['ปิด', pstClose, true]]); return; }
 
-      pst('🖨️', 'ส่งงานแล้ว รอเครื่องปริ้น…', `${DEST} · ${sheets} แผ่น`, [['ปิด (ไปทำอย่างอื่นได้)', pstClose, true]], true);
+      pst('🖨️', 'ส่งงานแล้ว รอเครื่องปริ้น…', `${DEST} · ${sheets}`, [['ปิด (ไปทำอย่างอื่นได้)', pstClose, true]], true);
       const t0 = Date.now();
       while (Date.now() - t0 < 180000 && $('pst').classList.contains('on')) {
         await new Promise(res => setTimeout(res, 2500));
