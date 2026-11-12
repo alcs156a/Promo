@@ -135,7 +135,7 @@
     // ===== ตั้งค่า =====
     const DEST = 'ALC';      // เครื่องที่ปริ้น: 'GR' / 'ALC' / 'RC'
     const LIFF_ID = '';      // LIFF ID ของหน้านี้ (ว่าง = เปิดในเบราว์เซอร์ธรรมดา ไม่รู้ชื่อคนปริ้น)
-    const API_URL = 'ใส่ URL Web app ของ Apps Script ตรงนี้ (ลงท้ายด้วย /exec)';
+    const API_URL = 'https://script.google.com/macros/s/AKfycbzHBiLgazk0LXHYRqTwkwNVYyrnrVt_J-FpdtvA3zho1kqpZgGYOsK07Lc-G3tYL_5Ugw/exec';
     const MAX_MB = 30;       // ขนาดไฟล์รวมต่อครั้ง
     // ===================
 
@@ -296,7 +296,7 @@
     // ---------- ส่งปริ้น ----------
     function pst(icon, title, desc, buttons, spin) {
       $('pIc').textContent = icon; $('pIc').className = 'ic' + (spin ? ' spin' : '');
-      $('pT').textContent = title; $('pD').textContent = desc;
+      $('pT').textContent = title; $('pD').textContent = desc; $('pD').style.whiteSpace = 'pre-line'; $('pD').style.wordBreak = 'break-word';
       $('pBtns').innerHTML = ''; (buttons || []).forEach(([t, fn, ghost]) => { const b = document.createElement('button'); b.textContent = t; if (ghost) b.className = 'ghost'; b.onclick = fn; $('pBtns').appendChild(b); });
       $('pst').classList.add('on');
     }
@@ -315,8 +315,12 @@
       const r = new FileReader(); r.onload = () => ok(String(r.result).split(',')[1]); r.onerror = bad; r.readAsDataURL(file);
     });
 
+    let lastResp = '';
     async function sendPrint() {
       if (!files.length) return;
+      if (!/^https:\/\/script\.google\.com\/macros\/s\/.+\/exec$/.test(API_URL)) {
+        pst('⚙️', 'ยังไม่ได้ตั้ง API_URL', 'ใส่ URL Web app (ลงท้าย /exec) ในไฟล์ promotion.html ก่อน — ตอนนี้เป็น: ' + API_URL.slice(0, 60), [['ปิด', pstClose]]); return;
+      }
       const total = files.reduce((n, f) => n + f.size, 0);
       if (total > MAX_MB * 1048576) { pst('📦', 'ไฟล์รวมใหญ่เกินไป', `รวม ${kb(total)} (ไม่เกิน ${MAX_MB} MB ต่อครั้ง) — แบ่งส่งทีละน้อย`, [['ตกลง', pstClose]]); return; }
       const sheets = sheetText(files.reduce((n, f) => n + f.pages.length * f.copies, 0));
@@ -333,9 +337,11 @@
         const ctl = new AbortController(), timer = setTimeout(() => ctl.abort(), 120000);
         let txt;
         try {
-          txt = await (await fetch(API_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body, signal: ctl.signal })).text();
+          const res = await fetch(API_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body, signal: ctl.signal });
+          txt = await res.text();
+          lastResp = `HTTP ${res.status} · ${res.url.split('?')[0].slice(0, 60)} · ` + txt.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 120);
         } finally { clearTimeout(timer); }
-        try { r = JSON.parse(txt); } catch (e) { r = { error: 'Google ตอบกลับไม่ถูกต้อง — โค้ดบอทอาจยังไม่ได้ Deploy เวอร์ชันใหม่' }; }
+        try { r = JSON.parse(txt); } catch (e) { r = { error: 'Google ตอบกลับไม่ถูกต้อง — เช็ก API_URL / การ Deploy (ผู้มีสิทธิ์ = ทุกคน)\n[' + lastResp + ']' }; }
       } catch (e) { r = { error: e.name === 'AbortError' ? 'ส่งไฟล์นานเกิน 2 นาที — เน็ตช้าหรือไฟล์ใหญ่ ลองใหม่ หรือส่งทีละน้อยไฟล์' : 'ส่งงานไม่สำเร็จ (' + (e.message || e) + ')' }; }
       if (r.error === 'no_permission') { pst('🔒', 'ยังไม่มีสิทธิ์ปริ้น', 'แจ้ง admin ให้เปิดสิทธิ์ก่อนนะครับ', [['ปิด', pstClose]]); return; }
       if (r.error) { pst('⚠️', 'ส่งงานไม่สำเร็จ', r.error, [['ลองอีกครั้ง', sendPrint], ['ปิด', pstClose, true]]); return; }
