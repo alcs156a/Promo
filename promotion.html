@@ -1,0 +1,285 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>ปริ้นป้ายโปรโมชั่น</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root { --red:#E30613; --red-d:#B8050F; --ink:#1B2420; --muted:#7A847F; --line:#E6E9E7; --bg:#F4F5F4; --green:#06C755; }
+  * { box-sizing: border-box; margin: 0; }
+  html, body { background: var(--bg); color: var(--ink); font-family: "Sarabun", system-ui, sans-serif; }
+  body { padding-bottom: 150px; }
+  header { background: var(--red); color: #fff; padding: 16px; }
+  header h1 { font-size: 20px; font-weight: 800; }
+  header p { font-size: 13px; opacity: .9; margin-top: 2px; }
+  .badge { display: inline-block; margin-top: 8px; background: rgba(255,255,255,.18); border-radius: 20px; padding: 3px 12px; font-size: 13px; font-weight: 700; }
+  main { padding: 14px 16px; max-width: 680px; margin: 0 auto; }
+  .card { background: #fff; border-radius: 14px; padding: 14px; margin-bottom: 12px; box-shadow: 0 1px 2px rgba(0,0,0,.05); }
+  .card h2 { font-size: 14px; color: var(--muted); font-weight: 600; margin-bottom: 10px; }
+  button { font: inherit; font-weight: 700; border: 0; border-radius: 10px; cursor: pointer; }
+
+  /* แนบไฟล์ */
+  #drop { display: block; border: 2.5px dashed #F2A7AB; background: #FFF6F6; border-radius: 14px; padding: 22px 12px; text-align: center; cursor: pointer; }
+  #drop.over { background: #FFE9EA; border-color: var(--red); }
+  #drop .ic { font-size: 40px; line-height: 1; }
+  #drop b { display: block; font-size: 17px; margin-top: 6px; color: var(--red-d); }
+  #drop span { font-size: 13px; color: var(--muted); }
+  #file { display: none; }
+
+  ul#files { list-style: none; padding: 0; margin-top: 10px; }
+  #files li { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-top: 1px solid var(--line); }
+  #files li:first-child { border-top: 0; }
+  #files img { width: 64px; height: 46px; object-fit: cover; border-radius: 6px; background: #eee; flex: none; }
+  #files .nm { flex: 1; min-width: 0; font-size: 14px; }
+  #files .nm small { display: block; color: var(--muted); font-size: 12px; }
+  #files .nm span { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .step { display: flex; align-items: center; border: 1.5px solid var(--line); border-radius: 10px; overflow: hidden; flex: none; }
+  .step button { background: #fff; width: 32px; height: 34px; font-size: 18px; color: var(--ink); border-radius: 0; }
+  .step b { min-width: 26px; text-align: center; font-size: 15px; }
+  .x { background: none; color: var(--muted); font-size: 18px; padding: 4px 6px; }
+
+  /* ตั้งค่า */
+  .seg { display: flex; background: var(--bg); border-radius: 10px; padding: 3px; }
+  .seg button { flex: 1; background: none; color: var(--muted); padding: 9px 4px; font-size: 15px; }
+  .seg button.on { background: #fff; color: var(--ink); box-shadow: 0 1px 3px rgba(0,0,0,.12); }
+  .seg button small { display: block; font-size: 11px; font-weight: 500; color: var(--muted); }
+  .lbl { font-size: 12px; color: var(--muted); margin: 12px 0 6px; }
+  .lbl:first-of-type { margin-top: 0; }
+
+  /* ตัวอย่างก่อนปริ้น */
+  #pv { display: flex; gap: 14px; overflow-x: auto; scroll-snap-type: x mandatory; padding: 4px 2px 10px; }
+  #pv .pg { flex: none; scroll-snap-align: center; background: #fff; box-shadow: 0 2px 10px rgba(0,0,0,.18); position: relative; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+  #pv .pg img { max-width: 100%; max-height: 100%; }
+  #pv .pg.fill img { width: 100%; height: 100%; object-fit: cover; max-width: none; max-height: none; }
+  #pv .pg .tag { position: absolute; left: 6px; top: 6px; background: rgba(0,0,0,.6); color: #fff; font-size: 11px; border-radius: 6px; padding: 1px 6px; }
+  #pv .empty { color: var(--muted); font-size: 14px; padding: 30px 0; text-align: center; width: 100%; }
+  .hint { font-size: 12px; color: var(--muted); }
+
+  #bar { position: fixed; left: 0; right: 0; bottom: 0; background: #fff; padding: 10px 16px 14px; box-shadow: 0 -2px 10px rgba(0,0,0,.08); display: flex; gap: 10px; align-items: center; z-index: 20; }
+  #bar .info { flex: 1; font-size: 13px; color: var(--muted); }
+  #bar .info b { color: var(--ink); font-size: 15px; }
+  #print { background: var(--red); color: #fff; padding: 13px 22px; font-size: 16px; }
+  #print:disabled { opacity: .4; }
+  #msg { font-size: 13px; color: var(--muted); margin-top: 8px; min-height: 18px; }
+  #pst { position: fixed; inset: 0; z-index: 60; background: rgba(15,20,18,.6); display: none; align-items: center; justify-content: center; padding: 24px; }
+  #pst.on { display: flex; }
+  #pst .box { background: #fff; border-radius: 18px; padding: 24px 20px; width: 100%; max-width: 360px; text-align: center; }
+  #pst .ic { font-size: 54px; line-height: 1.1; display: inline-block; }
+  #pst .ic.spin { animation: spin 1.2s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  #pst h3 { font-size: 20px; margin: 8px 0 4px; }
+  #pst p { color: var(--muted); font-size: 14px; margin-bottom: 16px; }
+  #pst .btns { display: grid; gap: 8px; }
+  #pst .btns button { padding: 12px; font-size: 16px; background: var(--red); color: #fff; }
+  #pst .btns button.ghost { background: #FDECEC; color: var(--red-d); }
+</style>
+</head>
+<body>
+  <header>
+    <h1>🏷️ ปริ้นป้ายโปรโมชั่น</h1>
+    <p>แนบรูปป้าย → ดูตัวอย่าง → สั่งปริ้น</p>
+    <span class="badge" id="badge">🖨️ ออกที่เครื่อง ALC (สี)</span>
+  </header>
+
+  <main>
+    <section class="card">
+      <h2>1. แนบไฟล์ป้าย</h2>
+      <label id="drop" for="file">
+        <div class="ic">📎</div>
+        <b>แตะเพื่อเลือกรูปป้าย</b>
+        <span>JPG · PNG · PDF · เลือกได้หลายไฟล์</span>
+      </label>
+      <input id="file" type="file" accept="image/*,application/pdf" multiple>
+      <ul id="files"></ul>
+      <div id="msg"></div>
+    </section>
+
+    <section class="card">
+      <h2>2. ขนาดกระดาษ</h2>
+      <div class="seg" id="paper">
+        <button data-v="A5">A5<small>ครึ่ง A4</small></button>
+        <button data-v="A4" class="on">A4<small>มาตรฐาน</small></button>
+        <button data-v="A3">A3<small>ใหญ่</small></button>
+      </div>
+      <div class="lbl">การจัดวาง</div>
+      <div class="seg" id="fit">
+        <button data-v="fit" class="on">พอดีแผ่น<small>เห็นครบ มีขอบขาว</small></button>
+        <button data-v="fill">เต็มแผ่น<small>ไม่มีขอบ ตัดขอบนิดหน่อย</small></button>
+      </div>
+      <div class="hint" style="margin-top:8px">แนวกระดาษ (ตั้ง/นอน) เลือกให้อัตโนมัติตามรูป</div>
+    </section>
+
+    <section class="card">
+      <h2>3. ตัวอย่างก่อนปริ้น <span id="pvCount"></span></h2>
+      <div id="pv"><div class="empty">ยังไม่มีไฟล์ — แนบรูปป้ายด้านบนก่อน</div></div>
+      <div class="hint">ปัดซ้าย-ขวาเพื่อดูแต่ละแผ่น</div>
+    </section>
+  </main>
+
+  <div id="bar">
+    <div class="info"><b id="sum">0 แผ่น</b><br><span id="sum2">A4 · เครื่อง ALC</span></div>
+    <button id="print" disabled>🖨️ สั่งปริ้น</button>
+  </div>
+
+  <div id="pst"><div class="box"><div class="ic" id="pIc">🖨️</div><h3 id="pT"></h3><p id="pD"></p><div class="btns" id="pBtns"></div></div></div>
+
+  <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+  <script>
+    // ===== ตั้งค่า =====
+    const DEST = 'ALC';      // เครื่องที่ปริ้น: 'GR' / 'ALC' / 'RC'
+    const LIFF_ID = '';      // LIFF ID ของหน้านี้ (ว่าง = เปิดในเบราว์เซอร์ธรรมดา ไม่รู้ชื่อคนปริ้น)
+    const API_URL = 'https://script.google.com/macros/s/AKfycbz9kcxmlb75jV1hT0dgtavyJYoEYo7p0fpsVtvBsw-aHuhS3fNC_YoGUXmNfHBi_1-O/exec';
+    const MAX_MB = 30;       // ขนาดไฟล์รวมต่อครั้ง
+    // ===================
+
+    const $ = (id) => document.getElementById(id);
+    let me = '', uid = '';
+    const PAPER = { A5: [148, 210], A4: [210, 297], A3: [297, 420] };   // มม. (แนวตั้ง)
+    let files = [];        // { name, size, pages: [dataURL], w, h, copies }
+    let paper = 'A4', fit = 'fit';
+
+    if (window.pdfjsLib) pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+    const say = (t) => { $('msg').textContent = t || ''; };
+    const kb = (n) => n > 1048576 ? (n / 1048576).toFixed(1) + ' MB' : Math.round(n / 1024) + ' KB';
+
+    function readImage(file) {
+      return new Promise((ok, bad) => {
+        const r = new FileReader();
+        r.onload = () => { const im = new Image(); im.onload = () => ok({ pages: [r.result], w: im.width, h: im.height }); im.onerror = bad; im.src = r.result; };
+        r.onerror = bad; r.readAsDataURL(file);
+      });
+    }
+    async function readPdf(file) {
+      const pdf = await pdfjsLib.getDocument({ data: await file.arrayBuffer() }).promise;
+      const pages = []; let w = 1, h = 1;
+      for (let i = 1; i <= Math.min(pdf.numPages, 20); i++) {
+        const pg = await pdf.getPage(i), vp = pg.getViewport({ scale: 1.6 });
+        const c = document.createElement('canvas'); c.width = vp.width; c.height = vp.height;
+        await pg.render({ canvasContext: c.getContext('2d'), viewport: vp }).promise;
+        pages.push(c.toDataURL('image/jpeg', .85)); if (i === 1) { w = vp.width; h = vp.height; }
+      }
+      return { pages, w, h };
+    }
+
+    async function addFiles(list) {
+      for (const f of list) {
+        if (!/^image\/|pdf$/.test(f.type)) { say('ไม่รองรับไฟล์ ' + f.name); continue; }
+        if (f.size > 15 * 1048576) { say(f.name + ' ใหญ่เกิน 15 MB'); continue; }
+        say('กำลังเปิด ' + f.name + ' …');
+        try {
+          const d = f.type.includes('pdf') ? await readPdf(f) : await readImage(f);
+          files.push(Object.assign({ name: f.name, size: f.size, copies: 1, isPdf: f.type.includes('pdf'), file: f, mime: f.type }, d));
+          say('');
+        } catch (e) { say('เปิดไฟล์ไม่ได้: ' + f.name); }
+      }
+      render();
+    }
+
+    function render() {
+      // รายการไฟล์
+      $('files').innerHTML = files.map((f, i) => `<li>
+          <img src="${f.pages[0]}" alt="">
+          <div class="nm"><span>${f.name.replace(/</g, '&lt;')}</span><small>${f.isPdf ? f.pages.length + ' หน้า · ' : ''}${kb(f.size)}</small></div>
+          <div class="step"><button data-i="${i}" data-d="-1">−</button><b>${f.copies}</b><button data-i="${i}" data-d="1">+</button></div>
+          <button class="x" data-del="${i}">✕</button></li>`).join('');
+
+      // ตัวอย่าง: 1 หน้า = 1 แผ่น (คูณจำนวนชุดแสดงเป็นป้ายบนแผ่น)
+      const [pw, ph] = PAPER[paper];
+      const H = 230;
+      let html = '', sheets = 0;
+      files.forEach(f => f.pages.forEach((src, k) => {
+        const land = f.w > f.h;                      // รูปแนวนอน → กระดาษแนวนอน
+        const ratio = land ? ph / pw : pw / ph;
+        const h = land ? Math.round(H * .75) : H, w = Math.round(h * ratio);
+        sheets += f.copies;
+        html += `<div class="pg ${fit}" style="width:${w}px;height:${h}px;${fit === 'fit' ? 'padding:' + Math.round(h * .03) + 'px' : ''}">
+          <img src="${src}" alt=""><span class="tag">${paper} ${land ? 'แนวนอน' : 'แนวตั้ง'} × ${f.copies}</span></div>`;
+      }));
+      $('pv').innerHTML = html || '<div class="empty">ยังไม่มีไฟล์ — แนบรูปป้ายด้านบนก่อน</div>';
+      $('pvCount').textContent = files.length ? `(${sheets} แผ่น)` : '';
+      $('sum').textContent = sheets + ' แผ่น';
+      $('sum2').textContent = paper + ' · ' + (fit === 'fit' ? 'พอดีแผ่น' : 'เต็มแผ่น') + ' · เครื่อง ' + DEST;
+      $('print').disabled = !files.length;
+    }
+
+    $('file').onchange = (e) => { addFiles([...e.target.files]); e.target.value = ''; };
+    ['dragover', 'dragenter'].forEach(ev => $('drop').addEventListener(ev, e => { e.preventDefault(); $('drop').classList.add('over'); }));
+    ['dragleave', 'drop'].forEach(ev => $('drop').addEventListener(ev, e => { e.preventDefault(); $('drop').classList.remove('over'); }));
+    $('drop').addEventListener('drop', e => addFiles([...e.dataTransfer.files]));
+    $('files').onclick = (e) => {
+      const b = e.target.closest('button'); if (!b) return;
+      if (b.dataset.del !== undefined) files.splice(+b.dataset.del, 1);
+      else { const f = files[+b.dataset.i]; f.copies = Math.max(1, Math.min(50, f.copies + +b.dataset.d)); }
+      render();
+    };
+    function seg(id, set) {
+      $(id).onclick = (e) => {
+        const b = e.target.closest('button'); if (!b) return;
+        $(id).querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b));
+        set(b.dataset.v); render();
+      };
+    }
+    seg('paper', v => paper = v);
+    seg('fit', v => fit = v);
+    // ---------- ส่งปริ้น ----------
+    function pst(icon, title, desc, buttons, spin) {
+      $('pIc').textContent = icon; $('pIc').className = 'ic' + (spin ? ' spin' : '');
+      $('pT').textContent = title; $('pD').textContent = desc;
+      $('pBtns').innerHTML = ''; (buttons || []).forEach(([t, fn, ghost]) => { const b = document.createElement('button'); b.textContent = t; if (ghost) b.className = 'ghost'; b.onclick = fn; $('pBtns').appendChild(b); });
+      $('pst').classList.add('on');
+    }
+    const pstClose = () => $('pst').classList.remove('on');
+    const toB64 = (file) => new Promise((ok, bad) => {
+      const r = new FileReader(); r.onload = () => ok(String(r.result).split(',')[1]); r.onerror = bad; r.readAsDataURL(file);
+    });
+
+    async function sendPrint() {
+      if (!files.length) return;
+      const total = files.reduce((n, f) => n + f.size, 0);
+      if (total > MAX_MB * 1048576) { pst('📦', 'ไฟล์รวมใหญ่เกินไป', `รวม ${kb(total)} (ไม่เกิน ${MAX_MB} MB ต่อครั้ง) — แบ่งส่งทีละน้อย`, [['ตกลง', pstClose]]); return; }
+      const sheets = files.reduce((n, f) => n + f.pages.length * f.copies, 0);
+      pst('⏳', 'กำลังส่งไฟล์…', `${files.length} ไฟล์ · ${sheets} แผ่น → ${DEST}`, [], true);
+      let r;
+      try {
+        const list = [];
+        for (const f of files) list.push({ name: f.name, mime: f.mime, copies: f.copies, data: await toB64(f.file) });
+        const txt = await (await fetch(API_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify({ action: 'promo', dest: DEST, paper, fit, files: list, by: me, uid, lineName: me }) })).text();
+        try { r = JSON.parse(txt); } catch (e) { r = { error: 'Google ตอบกลับไม่ถูกต้อง — โค้ดบอทอาจยังไม่ได้ Deploy เวอร์ชันใหม่' }; }
+      } catch (e) { r = { error: 'ส่งงานไม่สำเร็จ (' + (e.message || e) + ')' }; }
+      if (r.error === 'no_permission') { pst('🔒', 'ยังไม่มีสิทธิ์ปริ้น', 'แจ้ง admin ให้เปิดสิทธิ์ก่อนนะครับ', [['ปิด', pstClose]]); return; }
+      if (r.error) { pst('⚠️', 'ส่งงานไม่สำเร็จ', r.error, [['ลองอีกครั้ง', sendPrint], ['ปิด', pstClose, true]]); return; }
+
+      pst('🖨️', 'ส่งงานแล้ว รอเครื่องปริ้น…', `${DEST} · ${sheets} แผ่น`, [['ปิด (ไปทำอย่างอื่นได้)', pstClose, true]], true);
+      const t0 = Date.now();
+      while (Date.now() - t0 < 180000 && $('pst').classList.contains('on')) {
+        await new Promise(res => setTimeout(res, 2500));
+        let st; try { st = await (await fetch(API_URL + '?action=job&id=' + encodeURIComponent(r.id))).json(); } catch (e) { continue; }
+        if (st.status === 'printed') {
+          if (navigator.vibrate) navigator.vibrate([80, 60, 80]);
+          pst('✅', 'ปริ้นแล้ว', `ไปรับป้ายที่เครื่อง ${DEST} ได้เลย`, [['📎 ปริ้นชุดใหม่', () => { files = []; pstClose(); render(); }], ['ปิด (เก็บไฟล์ไว้)', pstClose, true]]); return;
+        }
+        if (st.status === 'failed') { pst('⚠️', 'ปริ้นไม่สำเร็จ', st.note || 'เครื่องปริ้นมีปัญหา', [['ลองอีกครั้ง', sendPrint], ['ปิด', pstClose, true]]); return; }
+        if (st.status === 'waiting' && st.agentOnline === false && Date.now() - t0 > 15000) {
+          pst('💤', 'คอมที่ต่อเครื่องปริ้นไม่ได้เปิดโปรแกรม', 'งานรออยู่ในคิว จะปริ้นออกเมื่อเปิดโปรแกรมปริ้น', [['ปิด', pstClose]]); return;
+        }
+      }
+      if ($('pst').classList.contains('on')) pst('⌛', 'ยังไม่ได้รับผลจากเครื่องปริ้น', 'งานอยู่ในคิวแล้ว ลองไปดูที่เครื่องปริ้น', [['ปิด', pstClose]]);
+    }
+    $('print').onclick = sendPrint;
+
+    // ---------- เริ่ม ----------
+    $('badge').textContent = '🖨️ ออกที่เครื่อง ' + DEST + (DEST === 'ALC' ? ' (สี)' : '');
+    render();
+    (async () => {
+      if (LIFF_ID && window.liff) {
+        try { await liff.init({ liffId: LIFF_ID }); if (liff.isLoggedIn()) { const p = await liff.getProfile(); me = p.displayName; uid = p.userId; } } catch (e) {}
+      }
+    })();
+  </script>
+</body>
+</html>
