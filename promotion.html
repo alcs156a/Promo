@@ -54,6 +54,9 @@
   #pv .pg img { max-width: 100%; max-height: 100%; }
   #pv .pg.fill img { width: 100%; height: 100%; object-fit: cover; max-width: none; max-height: none; }
   #pv .pg .tag { position: absolute; left: 6px; top: 6px; background: rgba(0,0,0,.6); color: #fff; font-size: 11px; border-radius: 6px; padding: 1px 6px; }
+  #pv canvas.pg { display: block; }
+  #pv .sheet { flex: none; scroll-snap-align: center; position: relative; }
+  #pv .sheet .tag { position: absolute; left: 6px; top: 6px; background: rgba(0,0,0,.6); color: #fff; font-size: 11px; border-radius: 6px; padding: 1px 6px; }
   #pv .empty { color: var(--muted); font-size: 14px; padding: 30px 0; text-align: center; width: 100%; }
   .hint { font-size: 12px; color: var(--muted); }
 
@@ -99,6 +102,7 @@
     <section class="card">
       <h2>2. ขนาดกระดาษ</h2>
       <div class="seg" id="paper">
+        <button data-v="A6">A6<small>4 ป้ายต่อ A4</small></button>
         <button data-v="A5">A5<small>2 ป้ายต่อ A4</small></button>
         <button data-v="A4" class="on">A4<small>มาตรฐาน</small></button>
         <button data-v="A3">A3<small>ใหญ่</small></button>
@@ -192,23 +196,82 @@
           <div class="step"><button data-i="${i}" data-d="-1">−</button><b>${f.copies}</b><button data-i="${i}" data-d="1">+</button></div>
           <button class="x" data-del="${i}">✕</button></li>`).join('');
 
-      // ตัวอย่าง: 1 หน้า = 1 แผ่น (คูณจำนวนชุดแสดงเป็นป้ายบนแผ่น)
-      const [pw, ph] = PAPER[paper];
+      // ตัวอย่าง
+      const [pw, ph] = PAPER[paper] || PAPER.A4;
       const H = 230;
       let html = '', sheets = 0;
-      files.forEach(f => f.pages.forEach((src, k) => {
-        const land = f.w > f.h;                      // รูปแนวนอน → กระดาษแนวนอน
-        const ratio = land ? ph / pw : pw / ph;
-        const h = land ? Math.round(H * .75) : H, w = Math.round(h * ratio);
-        sheets += f.copies;
-        html += `<div class="pg ${fit}" style="width:${w}px;height:${h}px;${fit === 'fit' ? 'padding:' + Math.round(h * .03) + 'px' : ''}">
-          <img src="${src}" alt=""><span class="tag">${paper} ${land ? 'แนวนอน' : 'แนวตั้ง'} × ${f.copies}</span></div>`;
-      }));
+      if (NUP[paper]) {
+        // A5 / A6: รวมหลายป้ายบน A4 — วาดเป็นแผ่น A4 ตามที่จะปริ้นจริง
+        const items = [];
+        files.forEach(f => { for (let c = 0; c < f.copies; c++) f.pages.forEach(src => items.push(src)); });
+        sheets = items.length;
+        const per = NUP[paper], n = Math.ceil(items.length / per);
+        for (let i = 0; i < n; i++) {
+          html += `<div class="sheet"><canvas class="pg" data-sheet="${i}" style="width:${Math.round(H * 210 / 297)}px;height:${H}px"></canvas>`
+            + `<span class="tag">A4 แผ่น ${i + 1}/${n} · ${paper} × ${Math.min(per, items.length - i * per)}</span></div>`;
+        }
+        pendingSheets = { items, per, cols: paper === 'A6' ? 2 : 1 };
+      } else {
+        pendingSheets = null;
+        files.forEach(f => f.pages.forEach((src, k) => {
+          const land = f.w > f.h;                      // รูปแนวนอน → กระดาษแนวนอน
+          const ratio = land ? ph / pw : pw / ph;
+          const h = land ? Math.round(H * .75) : H, w = Math.round(h * ratio);
+          sheets += f.copies;
+          html += `<div class="pg ${fit}" style="width:${w}px;height:${h}px;${fit === 'fit' ? 'padding:' + Math.round(h * .03) + 'px' : ''}">
+            <img src="${src}" alt=""><span class="tag">${paper} ${land ? 'แนวนอน' : 'แนวตั้ง'} × ${f.copies}</span></div>`;
+        }));
+      }
       $('pv').innerHTML = html || '<div class="empty">ยังไม่มีไฟล์ — แนบรูปป้ายด้านบนก่อน</div>';
       $('pvCount').textContent = files.length ? `(${sheetText(sheets)})` : '';
       $('sum').textContent = sheetText(sheets);
       $('sum2').textContent = paper + ' · ' + (fit === 'fit' ? 'พอดีแผ่น' : 'เต็มแผ่น') + ' · เครื่อง ' + DEST;
       $('print').disabled = !files.length;
+      if (pendingSheets) drawSheets(pendingSheets);
+    }
+
+    // ---------- วาดแผ่น A4 ที่มีหลายป้าย (เหมือนที่โปรแกรมปริ้นจัดจริง) ----------
+    let pendingSheets = null;
+    const imgCache = new Map();
+    const loadImg = (src) => {
+      if (!imgCache.has(src)) imgCache.set(src, new Promise(ok => { const im = new Image(); im.onload = () => ok(im); im.onerror = () => ok(null); im.src = src; }));
+      return imgCache.get(src);
+    };
+    function drawInSlot(ctx, im, x, y, w, h) {
+      const rot = (im.width > im.height) !== (w > h);           // แนวรูปไม่ตรงกับแนวช่อง → หมุน 90°
+      const ew = rot ? im.height : im.width, eh = rot ? im.width : im.height;
+      let dw = w, dh = h;
+      if (fit !== 'stretch') {
+        const m = fit === 'fill' ? 0 : Math.min(w, h) * .03;
+        const sc = (fit === 'fill' ? Math.max : Math.min)((w - 2 * m) / ew, (h - 2 * m) / eh);
+        dw = ew * sc; dh = eh * sc;
+      }
+      ctx.save();
+      ctx.beginPath(); ctx.rect(x, y, w, h); ctx.clip();
+      ctx.translate(x + w / 2, y + h / 2);
+      if (rot) ctx.rotate(-Math.PI / 2);
+      const a = rot ? dh : dw, b = rot ? dw : dh;
+      ctx.drawImage(im, -a / 2, -b / 2, a, b);
+      ctx.restore();
+    }
+    async function drawSheets({ items, per, cols }) {
+      const rows = per / cols;
+      document.querySelectorAll('#pv canvas[data-sheet]').forEach(async (cv) => {
+        const i = +cv.dataset.sheet, dpr = 2;
+        const W = cv.clientWidth * dpr, Hh = cv.clientHeight * dpr;
+        cv.width = W; cv.height = Hh;
+        const ctx = cv.getContext('2d');
+        ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, W, Hh);
+        const cw = W / cols, ch = Hh / rows;
+        const part = items.slice(i * per, i * per + per);
+        for (let k = 0; k < part.length; k++) {
+          const im = await loadImg(part[k]);
+          if (im) drawInSlot(ctx, im, (k % cols) * cw, Math.floor(k / cols) * ch, cw, ch);
+        }
+        ctx.strokeStyle = '#9aa'; ctx.lineWidth = 1; ctx.setLineDash([6, 5]);   // เส้นประไว้ตัด
+        for (let c = 1; c < cols; c++) { ctx.beginPath(); ctx.moveTo(c * cw, 0); ctx.lineTo(c * cw, Hh); ctx.stroke(); }
+        for (let r = 1; r < rows; r++) { ctx.beginPath(); ctx.moveTo(0, r * ch); ctx.lineTo(W, r * ch); ctx.stroke(); }
+      });
     }
 
     $('file').onchange = (e) => { addFiles([...e.target.files]); e.target.value = ''; };
